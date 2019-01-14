@@ -84,9 +84,9 @@ class UploadBehavior extends Behavior
      */
     public $deleteTempFile = true;
     /**
-    * @var boolean $deleteEmptyDir whether to delete the empty directory after model deletion.
-    */
-    public $deleteEmptyDir = false;
+     * @var boolean $deleteEmptyDir whether to delete the empty directory after model deletion.
+     */
+    public $deleteEmptyDir = true;
 
     /**
      * @var UploadedFile the uploaded file instance.
@@ -152,6 +152,44 @@ class UploadBehavior extends Behavior
     }
 
     /**
+     * @param UploadedFile $file
+     * @return string
+     */
+    protected function getFileName($file)
+    {
+        if ($this->generateNewName) {
+            return $this->generateNewName instanceof Closure
+                ? call_user_func($this->generateNewName, $file)
+                : $this->generateFileName($file);
+        } else {
+            return $this->sanitize($file->name);
+        }
+    }
+
+    /**
+     * Generates random filename.
+     * @param UploadedFile $file
+     * @return string
+     */
+    protected function generateFileName($file)
+    {
+        return uniqid() . '.' . $file->extension;
+    }
+
+    /**
+     * Replaces characters in strings that are illegal/unsafe for filename.
+     *
+     * #my*  unsaf<e>&file:name?".png
+     *
+     * @param string $filename the source filename to be "sanitized"
+     * @return boolean string the sanitized filename
+     */
+    public static function sanitize($filename)
+    {
+        return str_replace([' ', '"', '\'', '&', '/', '\\', '?', '#'], '-', $filename);
+    }
+
+    /**
      * This method is called at the beginning of inserting or updating a record.
      */
     public function beforeSave()
@@ -180,6 +218,71 @@ class UploadBehavior extends Behavior
     }
 
     /**
+     * Deletes old file.
+     * @param string $attribute
+     * @param boolean $old
+     */
+    protected function delete($attribute, $old = false)
+    {
+        $path = $this->getUploadPath($attribute, $old);
+
+        $this->deleteFile($path);
+
+        if ($this->deleteEmptyDir) {
+            $dir = dirname($path);
+            if (is_dir($dir) && count(scandir($dir)) == 2) {
+                rmdir($dir);
+            }
+        }
+    }
+
+    /**
+     * Returns file path for the attribute.
+     * @param string $attribute
+     * @param boolean $old
+     * @return string|null the file path.
+     */
+    public function getUploadPath($attribute, $old = false)
+    {
+        /** @var BaseActiveRecord $model */
+        $model = $this->owner;
+        $path = $this->resolvePath($this->path);
+        $fileName = ($old === true) ? $model->getOldAttribute($attribute) : $model->$attribute;
+
+        return $fileName ? Yii::getAlias($path . '/' . $fileName) : null;
+    }
+
+    /**
+     * Replaces all placeholders in path variable with corresponding values.
+     */
+    protected function resolvePath($path)
+    {
+        /** @var BaseActiveRecord $model */
+        $model = $this->owner;
+        return preg_replace_callback('/{([^}]+)}/', function ($matches) use ($model) {
+            $name = $matches[1];
+            $attribute = ArrayHelper::getValue($model, $name);
+            if (is_string($attribute) || is_numeric($attribute)) {
+                return $attribute;
+            } else {
+                return $matches[0];
+            }
+        }, $path);
+    }
+
+    /**
+     * Delete file from path
+     * @param string $path
+     */
+    protected function deleteFile($path)
+    {
+        if (is_file($path)) {
+            unlink($path);
+        }
+        return;
+    }
+
+    /**
      * This method is called at the end of inserting or updating a record.
      * @throws \yii\base\InvalidArgumentException
      */
@@ -199,6 +302,28 @@ class UploadBehavior extends Behavior
     }
 
     /**
+     * Saves the uploaded file.
+     * @param UploadedFile $file the uploaded file instance
+     * @param string $path the file path used to save the uploaded file
+     * @return boolean true whether the file is saved successfully
+     */
+    protected function save($file, $path)
+    {
+        return $file->saveAs($path, $this->deleteTempFile);
+    }
+
+    /**
+     * This method is invoked after uploading a file.
+     * The default implementation raises the [[EVENT_AFTER_UPLOAD]] event.
+     * You may override this method to do postprocessing after the file is uploaded.
+     * Make sure you call the parent implementation so that the event is raised properly.
+     */
+    protected function afterUpload()
+    {
+        $this->owner->trigger(self::EVENT_AFTER_UPLOAD);
+    }
+
+    /**
      * This method is invoked after deleting a record.
      */
     public function afterDelete()
@@ -207,22 +332,6 @@ class UploadBehavior extends Behavior
         if ($this->unlinkOnDelete && $attribute) {
             $this->delete($attribute);
         }
-    }
-
-    /**
-     * Returns file path for the attribute.
-     * @param string $attribute
-     * @param boolean $old
-     * @return string|null the file path.
-     */
-    public function getUploadPath($attribute, $old = false)
-    {
-        /** @var BaseActiveRecord $model */
-        $model = $this->owner;
-        $path = $this->resolvePath($this->path);
-        $fileName = ($old === true) ? $model->getOldAttribute($attribute) : $model->$attribute;
-
-        return $fileName ? Yii::getAlias($path . '/' . $fileName) : null;
     }
 
     /**
@@ -247,104 +356,5 @@ class UploadBehavior extends Behavior
     protected function getUploadedFile()
     {
         return $this->_file;
-    }
-
-    /**
-     * Replaces all placeholders in path variable with corresponding values.
-     */
-    protected function resolvePath($path)
-    {
-        /** @var BaseActiveRecord $model */
-        $model = $this->owner;
-        return preg_replace_callback('/{([^}]+)}/', function ($matches) use ($model) {
-            $name = $matches[1];
-            $attribute = ArrayHelper::getValue($model, $name);
-            if (is_string($attribute) || is_numeric($attribute)) {
-                return $attribute;
-            } else {
-                return $matches[0];
-            }
-        }, $path);
-    }
-
-    /**
-     * Saves the uploaded file.
-     * @param UploadedFile $file the uploaded file instance
-     * @param string $path the file path used to save the uploaded file
-     * @return boolean true whether the file is saved successfully
-     */
-    protected function save($file, $path)
-    {
-        return $file->saveAs($path, $this->deleteTempFile);
-    }
-
-    /**
-     * Deletes old file.
-     * @param string $attribute
-     * @param boolean $old
-     */
-    protected function delete($attribute, $old = false)
-    {
-        $path = $this->getUploadPath($attribute, $old);
-
-        if (is_file($path)) {
-            unlink($path);
-        }
-
-        if ($this->deleteEmptyDir) {
-            $dir = dirname($path);
-            if (is_dir($dir) && count(scandir($dir)) == 2) {
-                rmdir($dir);
-            }
-        }
-    }
-
-    /**
-     * @param UploadedFile $file
-     * @return string
-     */
-    protected function getFileName($file)
-    {
-        if ($this->generateNewName) {
-            return $this->generateNewName instanceof Closure
-                ? call_user_func($this->generateNewName, $file)
-                : $this->generateFileName($file);
-        } else {
-            return $this->sanitize($file->name);
-        }
-    }
-
-    /**
-     * Replaces characters in strings that are illegal/unsafe for filename.
-     *
-     * #my*  unsaf<e>&file:name?".png
-     *
-     * @param string $filename the source filename to be "sanitized"
-     * @return boolean string the sanitized filename
-     */
-    public static function sanitize($filename)
-    {
-        return str_replace([' ', '"', '\'', '&', '/', '\\', '?', '#'], '-', $filename);
-    }
-
-    /**
-     * Generates random filename.
-     * @param UploadedFile $file
-     * @return string
-     */
-    protected function generateFileName($file)
-    {
-        return uniqid() . '.' . $file->extension;
-    }
-
-    /**
-     * This method is invoked after uploading a file.
-     * The default implementation raises the [[EVENT_AFTER_UPLOAD]] event.
-     * You may override this method to do postprocessing after the file is uploaded.
-     * Make sure you call the parent implementation so that the event is raised properly.
-     */
-    protected function afterUpload()
-    {
-        $this->owner->trigger(self::EVENT_AFTER_UPLOAD);
     }
 }

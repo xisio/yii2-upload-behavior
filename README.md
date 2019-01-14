@@ -133,6 +133,8 @@ class User extends ActiveRecord
                 'createThumbsOnSave' => true,
                 //if need create thumb for one profile only on request by getThumbUploadUrl() method
                 'createThumbsOnRequest' => true,
+                //if you want to remove original upload file after images thumbs was generated
+                'deleteOriginalFile' => true,
                 'thumbs' => [
                     'thumb' => ['width' => 400, 'quality' => 90],
                     'preview' => ['width' => 200, 'height' => 200],
@@ -182,13 +184,15 @@ Behavior Options
 * generateNewName - Set true or anonymous function takes the old filename and returns a new name, default value is `true`
 * unlinkOnSave - If `true` current attribute file will be deleted, default value is `true`
 * unlinkOnDelete - If `true` current attribute file will be deleted after model deletion.
-* deleteEmptyDir - If `true` the **empty** directory will be deleted after model deletion, default value is `false`.
+* deleteEmptyDir - If `true` the **empty** directory will be deleted after model deletion, default value is `true`.
 
 UploadImageBehavior additional Options
 -------
 
 * createThumbsOnSave - If `true` create all thumbs profiles on image upload
 * createThumbsOnRequest - If `true` create thumb only for profile request by `getThumbUploadUrl('attribute', 'profile_name)` method. If `true` recommend to set `createThumbsOnSave` to `false`
+* deleteOriginalFile - If `true` the **original upload image** will be deleted after images thumbs was generated, default value is `false`.\
+**Attention** don't use with **createThumbsOnRequest** options, because thumbs generate on request (NOT after upload image) and after first profile thumb generation original file will be deleted!
 
 ### Attention!
 
