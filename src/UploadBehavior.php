@@ -54,11 +54,55 @@ class UploadBehavior extends Behavior
      */
     public $scenarios = [];
     /**
-     * @var string the base path or path alias to the directory in which to save files.
+     * @var string|callable|array Base path or path alias to the directory in which to save files,
+     * or callable for setting up your custom path generation logic.
+     * If $path is callable, callback signature should be as follow and return a string:
+     *
+     * ```php
+     * function (\yii\db\ActiveRecord $model)
+     * {
+     *     // do something...
+     *     return $string;
+     * }
+     * ```
+     * If this property is set up as array, it should be, for example, like as follow ['\app\models\UserProfile', 'buildAvatarPath'],
+     * where first element is class name, while second is its static method that should be called for path generation.
+     *
+     * Example:
+     * ```php
+     * public static function buildAvatarPath(\yii\db\ActiveRecord $model)
+     * {
+     *      $basePath = '@webroot/upload/avatars/';
+     *      $suffix = implode('/', array_slice(str_split(md5($model->id), 2), 0, 2));
+     *      return $basePath . $suffix;
+     * }
+     * ```
      */
     public $path;
     /**
-     * @var string the base URL or path alias for this file
+     * @var string|callable|array Base URL or path alias for this file,
+     * or callable for setting up your custom URL generation logic.
+     * If $url is callable, callback signature should be as follow and return a string:
+     *
+     * ```php
+     * function (\yii\db\ActiveRecord $model)
+     * {
+     *     // do something...
+     *     return $string;
+     * }
+     * ```
+     * If this property is set up as array, it should be, for example, like as follow ['\app\models\UserProfile', 'buildAvatarUrl'],
+     * where first element is class name, while second is its static method that should be called for URL generation.
+     *
+     * Example:
+     * ```php
+     * public static function buildAvatarUrl(\yii\db\ActiveRecord $model)
+     * {
+     *      $baseUrl = '@web/upload/avatars/';
+     *      $suffix = implode('/', array_slice(str_split(md5($model->id), 2), 0, 2));
+     *      return $baseUrl . $suffix;
+     * }
+     * ```
      */
     public $url;
     /**
@@ -152,44 +196,6 @@ class UploadBehavior extends Behavior
     }
 
     /**
-     * @param UploadedFile $file
-     * @return string
-     */
-    protected function getFileName($file)
-    {
-        if ($this->generateNewName) {
-            return $this->generateNewName instanceof Closure
-                ? call_user_func($this->generateNewName, $file)
-                : $this->generateFileName($file);
-        } else {
-            return $this->sanitize($file->name);
-        }
-    }
-
-    /**
-     * Generates random filename.
-     * @param UploadedFile $file
-     * @return string
-     */
-    protected function generateFileName($file)
-    {
-        return uniqid() . '.' . $file->extension;
-    }
-
-    /**
-     * Replaces characters in strings that are illegal/unsafe for filename.
-     *
-     * #my*  unsaf<e>&file:name?".png
-     *
-     * @param string $filename the source filename to be "sanitized"
-     * @return boolean string the sanitized filename
-     */
-    public static function sanitize($filename)
-    {
-        return str_replace([' ', '"', '\'', '&', '/', '\\', '?', '#'], '-', $filename);
-    }
-
-    /**
      * This method is called at the beginning of inserting or updating a record.
      */
     public function beforeSave()
@@ -218,73 +224,8 @@ class UploadBehavior extends Behavior
     }
 
     /**
-     * Deletes old file.
-     * @param string $attribute
-     * @param boolean $old
-     */
-    protected function delete($attribute, $old = false)
-    {
-        $path = $this->getUploadPath($attribute, $old);
-
-        $this->deleteFile($path);
-
-        if ($this->deleteEmptyDir) {
-            $dir = dirname($path);
-            if (is_dir($dir) && count(scandir($dir)) == 2) {
-                rmdir($dir);
-            }
-        }
-    }
-
-    /**
-     * Returns file path for the attribute.
-     * @param string $attribute
-     * @param boolean $old
-     * @return string|null the file path.
-     */
-    public function getUploadPath($attribute, $old = false)
-    {
-        /** @var BaseActiveRecord $model */
-        $model = $this->owner;
-        $path = $this->resolvePath($this->path);
-        $fileName = ($old === true) ? $model->getOldAttribute($attribute) : $model->$attribute;
-
-        return $fileName ? Yii::getAlias($path . '/' . $fileName) : null;
-    }
-
-    /**
-     * Replaces all placeholders in path variable with corresponding values.
-     */
-    protected function resolvePath($path)
-    {
-        /** @var BaseActiveRecord $model */
-        $model = $this->owner;
-        return preg_replace_callback('/{([^}]+)}/', function ($matches) use ($model) {
-            $name = $matches[1];
-            $attribute = ArrayHelper::getValue($model, $name);
-            if (is_string($attribute) || is_numeric($attribute)) {
-                return $attribute;
-            } else {
-                return $matches[0];
-            }
-        }, $path);
-    }
-
-    /**
-     * Delete file from path
-     * @param string $path
-     */
-    protected function deleteFile($path)
-    {
-        if (is_file($path)) {
-            unlink($path);
-        }
-        return;
-    }
-
-    /**
      * This method is called at the end of inserting or updating a record.
-     * @throws \yii\base\InvalidArgumentException
+     * @throws \yii\base\Exception
      */
     public function afterSave()
     {
@@ -302,28 +243,6 @@ class UploadBehavior extends Behavior
     }
 
     /**
-     * Saves the uploaded file.
-     * @param UploadedFile $file the uploaded file instance
-     * @param string $path the file path used to save the uploaded file
-     * @return boolean true whether the file is saved successfully
-     */
-    protected function save($file, $path)
-    {
-        return $file->saveAs($path, $this->deleteTempFile);
-    }
-
-    /**
-     * This method is invoked after uploading a file.
-     * The default implementation raises the [[EVENT_AFTER_UPLOAD]] event.
-     * You may override this method to do postprocessing after the file is uploaded.
-     * Make sure you call the parent implementation so that the event is raised properly.
-     */
-    protected function afterUpload()
-    {
-        $this->owner->trigger(self::EVENT_AFTER_UPLOAD);
-    }
-
-    /**
      * This method is invoked after deleting a record.
      */
     public function afterDelete()
@@ -335,9 +254,27 @@ class UploadBehavior extends Behavior
     }
 
     /**
+     * Returns file path for the attribute.
+     * @param string $attribute
+     * @param boolean $old
+     * @return string|null the file path.
+     * @throws \yii\base\InvalidConfigException
+     */
+    public function getUploadPath($attribute, $old = false)
+    {
+        /** @var BaseActiveRecord $model */
+        $model = $this->owner;
+        $path = $this->resolvePath($this->path);
+        $fileName = ($old === true) ? $model->getOldAttribute($attribute) : $model->$attribute;
+
+        return $fileName ? Yii::getAlias($path . '/' . $fileName) : null;
+    }
+
+    /**
      * Returns file url for the attribute.
      * @param string $attribute
      * @return string|null
+     * @throws \yii\base\InvalidConfigException
      */
     public function getUploadUrl($attribute)
     {
@@ -357,4 +294,122 @@ class UploadBehavior extends Behavior
     {
         return $this->_file;
     }
+
+    /**
+     * Replaces all placeholders in path variable with corresponding values.
+     */
+    protected function resolvePath($path)
+    {
+        /** @var BaseActiveRecord $model */
+        $model = $this->owner;
+        if (is_string($path)) {
+            return preg_replace_callback('/{([^}]+)}/', function ($matches) use ($model) {
+                $name = $matches[1];
+                $attribute = ArrayHelper::getValue($model, $name);
+                if (is_string($attribute) || is_numeric($attribute)) {
+                    return $attribute;
+                } else {
+                    return $matches[0];
+                }
+            }, $path);
+        } elseif (is_callable($path) || is_array($path)) {
+            return call_user_func($path, $model);
+        } else {
+            throw new InvalidArgumentException(
+                '$path argument must be a string, array or callable: ' . gettype($path) . ' given.'
+            );
+        }
+    }
+
+    /**
+     * Saves the uploaded file.
+     * @param UploadedFile $file the uploaded file instance
+     * @param string $path the file path used to save the uploaded file
+     * @return boolean true whether the file is saved successfully
+     */
+    protected function save($file, $path)
+    {
+        return $file->saveAs($path, $this->deleteTempFile);
+    }
+
+    /**
+     * Deletes old file.
+     * @param string $attribute
+     * @param boolean $old
+     */
+    protected function delete($attribute, $old = false)
+    {
+        $path = $this->getUploadPath($attribute, $old);
+
+        $this->deleteFile($path);
+
+        if ($this->deleteEmptyDir) {
+            $dir = dirname($path);
+            if (is_dir($dir) && count(scandir($dir)) == 2) {
+                rmdir($dir);
+            }
+        }
+    }
+
+    /**
+     * @param UploadedFile $file
+     * @return string
+     */
+    protected function getFileName($file)
+    {
+        if ($this->generateNewName) {
+            return $this->generateNewName instanceof Closure
+                ? call_user_func($this->generateNewName, $file)
+                : $this->generateFileName($file);
+        } else {
+            return $this->sanitize($file->name);
+        }
+    }
+
+    /**
+     * Replaces characters in strings that are illegal/unsafe for filename.
+     *
+     * #my*  unsaf<e>&file:name?".png
+     *
+     * @param string $filename the source filename to be "sanitized"
+     * @return boolean string the sanitized filename
+     */
+    public static function sanitize($filename)
+    {
+        return str_replace([' ', '"', '\'', '&', '/', '\\', '?', '#'], '-', $filename);
+    }
+
+    /**
+     * Generates random filename.
+     * @param UploadedFile $file
+     * @return string
+     */
+    protected function generateFileName($file)
+    {
+        return uniqid() . '.' . $file->extension;
+    }
+
+    /**
+     * This method is invoked after uploading a file.
+     * The default implementation raises the [[EVENT_AFTER_UPLOAD]] event.
+     * You may override this method to do postprocessing after the file is uploaded.
+     * Make sure you call the parent implementation so that the event is raised properly.
+     */
+    protected function afterUpload()
+    {
+        $this->owner->trigger(self::EVENT_AFTER_UPLOAD);
+    }
+
+    /**
+     * Delete file from path
+     * @param string $path
+     */
+    protected function deleteFile($path)
+    {
+        if (is_file($path)) {
+            unlink($path);
+        }
+        return;
+    }
+
 }
