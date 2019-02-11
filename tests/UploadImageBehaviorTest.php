@@ -48,16 +48,36 @@ class UploadImageBehaviorTest extends DatabaseTestCase
 
         $this->assertTrue($user->save());
 
+        //request image by url
+        $thumbUrl = $user->getThumbUploadUrl('image', 'thumb');
         $thumbPath = $user->getThumbUploadPath('image', 'thumb');
 
         $thumbInfo = getimagesize($thumbPath);
         $this->assertEquals(400, $thumbInfo[0]);
         $this->assertEquals(300, $thumbInfo[1]);
 
+        //request image by url
+        $previewUrl = $user->getThumbUploadUrl('image', 'preview');
         $previewPath = $user->getThumbUploadPath('image', 'preview');
         $previewInfo = getimagesize($previewPath);
         $this->assertEquals(200, $previewInfo[0]);
         $this->assertEquals(200, $previewInfo[1]);
+    }
+
+    public function testCreateUserImagesByRequestUrl()
+    {
+        $user = new User([
+            'nickname' => 'Alex',
+            'id' => 4,
+        ]);
+        $user->setScenario('insert');
+
+        $this->assertTrue($user->save());
+
+        $this->assertFalse(file_exists(__DIR__ . '/upload/user/' . $user->id . '/preview-test-image.jpg'));
+        //request image by url
+        $previewPath = $user->getThumbUploadUrl('image', 'preview');
+        $this->assertTrue(file_exists(__DIR__ . '/upload/user/' . $user->id . '/preview-test-image.jpg'));
     }
 
     /**
