@@ -91,6 +91,19 @@ class UploadBehaviorTest extends DatabaseTestCase
         $this->assertFalse(is_dir(dirname($path2)));
     }
 
+    public function testFailValidationWithRestoreOldAttribute()
+    {
+        $document = Document::findOne(3);
+
+        $this->assertEquals('file-3.jpg', $document->file);
+
+        $document->setScenario('update');
+        $document->file = UploadedFile::getInstanceByName('Document[file-other-php]');
+        $this->assertFalse($document->validate());
+
+        $this->assertEquals('file-3.jpg', $document->file);
+    }
+
     /**
      * @inheritdoc
      */
@@ -118,6 +131,13 @@ class UploadBehaviorTest extends DatabaseTestCase
                 'type' => 'text/plain',
                 'size' => 12,
                 'tmp_name' => __DIR__ . '/data/test-file.txt',
+                'error' => 0,
+            ],
+            'Document[file-other-php]' => [
+                'name' => 'test-file.php',
+                'type' => 'text/php',
+                'size' => 10,
+                'tmp_name' => __DIR__ . '/data/test-file.php',
                 'error' => 0,
             ],
         ];

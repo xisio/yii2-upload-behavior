@@ -131,6 +131,10 @@ class UploadBehavior extends Behavior
      * @var boolean $deleteEmptyDir whether to delete the empty directory after model deletion.
      */
     public $deleteEmptyDir = true;
+    /**
+     * @var bool restore old value after fail attribute validation
+     */
+    public $restoreValueAfterFailValidation = true;
 
     /**
      * @var UploadedFile the uploaded file instance.
@@ -163,6 +167,7 @@ class UploadBehavior extends Behavior
     {
         return [
             BaseActiveRecord::EVENT_BEFORE_VALIDATE => 'beforeValidate',
+            BaseActiveRecord::EVENT_AFTER_VALIDATE => 'afterValidate',
             BaseActiveRecord::EVENT_BEFORE_INSERT => 'beforeSave',
             BaseActiveRecord::EVENT_BEFORE_UPDATE => 'beforeSave',
             BaseActiveRecord::EVENT_AFTER_INSERT => 'afterSave',
@@ -409,6 +414,20 @@ class UploadBehavior extends Behavior
         if (is_file($path)) {
             unlink($path);
         }
+        return;
+    }
+
+    /**
+     * Set old attribute value if has attribute validation error
+     */
+    public function afterValidate()
+    {
+        /** @var BaseActiveRecord $model */
+        $model = $this->owner;
+
+        if ($this->restoreValueAfterFailValidation && $model->hasErrors($this->attribute))
+            $model->setAttribute($this->attribute, $model->getOldAttribute($this->attribute));
+
         return;
     }
 
