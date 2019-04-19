@@ -40,6 +40,8 @@ class Document extends ActiveRecord
                 'scenarios' => ['insert', 'update'],
                 'path' => '@webroot/upload/docs/{id}',
                 'url' => '@web/upload/docs/{id}',
+                'tempFolder' => '@webroot/upload/',
+                'generateNewName' => false
             ],
         ];
     }

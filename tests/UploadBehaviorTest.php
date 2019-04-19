@@ -4,7 +4,6 @@ namespace tests;
 
 use tests\models\Document;
 use tests\models\File;
-use Yii;
 use yii\web\UploadedFile;
 
 /**

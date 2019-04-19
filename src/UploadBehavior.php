@@ -10,6 +10,7 @@ use yii\base\InvalidConfigException;
 use yii\db\BaseActiveRecord;
 use yii\helpers\ArrayHelper;
 use yii\helpers\FileHelper;
+use yii\httpclient\Client;
 use yii\web\UploadedFile;
 
 /**
@@ -135,11 +136,22 @@ class UploadBehavior extends Behavior
      * @var bool restore old value after fail attribute validation
      */
     public $restoreValueAfterFailValidation = true;
-
+    /**
+     * @var string temporary folder name
+     */
+    public $tempFolder = '@runtime/';
     /**
      * @var UploadedFile the uploaded file instance.
      */
     private $_file;
+    /**
+     * @var import flag for not generate new filename on import
+     */
+    private $_import;
+    /**
+     * @var temporary filename
+     */
+    private $_temp_file_path;
 
 
     /**
@@ -215,7 +227,7 @@ class UploadBehavior extends Behavior
                     }
                 }
                 $model->setAttribute($this->attribute, $this->_file->name);
-            } else {
+            } elseif (!$this->_import) {
                 // Protect attribute
                 unset($model->{$this->attribute});
             }
@@ -238,6 +250,7 @@ class UploadBehavior extends Behavior
             $path = $this->getUploadPath($this->attribute);
             if (is_string($path) && FileHelper::createDirectory(dirname($path))) {
                 $this->save($this->_file, $path);
+                $this->deleteTempFile();
                 $this->afterUpload();
             } else {
                 throw new InvalidArgumentException(
@@ -362,7 +375,7 @@ class UploadBehavior extends Behavior
      */
     protected function getFileName($file)
     {
-        if ($this->generateNewName) {
+        if ($this->generateNewName && !$this->_import) {
             return $this->generateNewName instanceof Closure
                 ? call_user_func($this->generateNewName, $file)
                 : $this->generateFileName($file);
@@ -431,4 +444,139 @@ class UploadBehavior extends Behavior
         return;
     }
 
+    /**
+     * Upload file from url
+     *
+     * @param $attribute string name of attribute with attached UploadBehavior
+     * @param $url string
+     * @throws InvalidConfigException
+     * @throws \yii\base\Exception
+     * @throws \yii\httpclient\Exception
+     */
+    public function uploadFromUrl($attribute, $url) {
+
+        $this->_import = true;
+
+        $client = new Client();
+        $response = $client->createRequest()
+            ->setUrl($url)
+            ->setMethod('GET')
+            ->send();
+        $contentType = $response->getHeaders()->get('Content-Type');
+
+        if ($response->isOk) {
+
+            $fileContent = $response->content;
+            $this->setAttributeFile($attribute, $url, $fileContent);
+
+        }
+        else {
+            throw new InvalidArgumentException('url $url not valid');
+        }
+    }
+
+    /**
+     * Upload file from local storage
+     *
+     * @param $attribute string name of attribute with attached UploadBehavior
+     * @param $filename
+     * @throws InvalidConfigException
+     * @throws \yii\base\Exception
+     */
+    public function uploadFromFile($attribute, $filename) {
+
+        $this->_import = true;
+
+        $file_path = \Yii::getAlias($filename);
+
+        if (file_exists($file_path)) {
+            $this->setAttributeFile($attribute, $file_path);
+        }
+        else {
+            throw new InvalidArgumentException('file $filename not exist');
+        }
+
+    }
+
+    /**
+     * @param $attribute
+     * @param $url
+     * @param string $fileContent
+     * @throws InvalidConfigException
+     * @throws \yii\base\Exception
+     */
+    protected function setAttributeFile($attribute, $filePath, $fileContent = null)
+    {
+        /** @var BaseActiveRecord $model */
+        $model = $this->owner;
+
+        $old_value = $model->getAttribute($attribute);
+
+        $temp_filename = uniqid();
+        $temp_file_path = \Yii::getAlias($this->tempFolder) . $temp_filename;
+
+        try {
+            if ($fileContent === null) {
+                @copy($filePath, $temp_file_path);
+            } else {
+                @file_put_contents($temp_file_path, $fileContent);
+            }
+
+            $this->_temp_file_path = $temp_file_path;
+
+            $pathinfo = pathinfo($filePath);
+
+            //check extension by mime type
+            $mime = FileHelper::getMimeType($temp_file_path);
+            $extension = FileHelper::getExtensionsByMimeType($mime);
+
+            //compare with pathinfo values
+            if (in_array($pathinfo['extension'], $extension)) {
+                $extension = $pathinfo['extension'];
+            } else {
+                $extension = $extension[0];
+            }
+
+            //get full filename
+            if ($this->generateNewName) {
+                $full_filename = basename($temp_filename) . '.' . $extension;
+            } else {
+                $full_filename = $pathinfo['filename'] . '.' . $extension;
+            }
+
+            //for validation
+            $upload = new UploadedFile();
+            $upload->tempName = $temp_file_path;
+            $upload->name = basename($full_filename);
+
+            $model->setAttribute($attribute, $upload);
+            //check validation rules in model
+            if ($result = $model->validate($attribute)) {
+
+                $this->_file = $upload;
+
+                $file_path = $this->getUploadPath($attribute);
+                //copy file to uploadpath folder
+                if (is_string($file_path) && FileHelper::createDirectory(dirname($file_path))) {
+                    @copy($temp_file_path, $file_path);
+                }
+            } else {
+                $model->setAttribute($attribute, $old_value);
+                $this->deleteTempFile();
+            }
+        } catch (\Exception $e) {
+            $this->deleteTempFile();
+        }
+    }
+
+    /**
+     * remove temp file
+     */
+    protected function deleteTempFile()
+    {
+        if ($this->_temp_file_path !== null) {
+            $this->deleteFile($this->_temp_file_path);
+            $this->_temp_file_path = null;
+        }
+    }
 }

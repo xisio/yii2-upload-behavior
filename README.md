@@ -1,10 +1,11 @@
 Upload behavior for Yii 2
 ===========================
 
-This repo is fork https://github.com/mohorev/yii2-upload-behavior/
-
 This behavior automatically uploads file and fills the specified attribute with a value of the name of the uploaded file.
-This code is inspired by, but not derived from, https://github.com/yii-dream-team/yii2-upload-behavior.
+
+In this behaviour added ability to load file from URL and local files.
+
+This repo is fork https://github.com/mohorev/yii2-upload-behavior/
 
 Installation
 ------------
@@ -26,7 +27,7 @@ or add this code line to the `require` section of your `composer.json` file:
 Usage
 -----
 
-### Upload file
+### Upload file from input forms
 
 Attach the behavior in your model:
 
@@ -95,6 +96,33 @@ Example view file:
         <?= Html::submitButton('Submit', ['class' => 'btn btn-primary']) ?>
     </div>
 <?php ActiveForm::end(); ?>
+```
+### Upload file from url
+To load file from url
+```php
+$model = new Document();
+$model->setScenario('update'); //Use scenarion for validation and load file
+$model->uploadFromUrl('file', 'https://i.ytimg.com/vi/yfJbKba5xYM/maxresdefault.jpg');
+$model->save();
+```
+### Upload file from file
+To load file from local file
+```php
+$model = new Document();
+$model->setScenario('update'); //Use scenarion for validation and load file
+$model->uploadFromFile('file', \Yii::getAlias('@webroot/images/02.jpg'));
+$model->save();
+```
+
+### Get path in you application 
+Get upload url
+```php
+$model->getUploadUrl('file');
+```
+
+Get upload path
+```php
+$model->getUploadPath('file');
 ```
 
 ### Upload image and create thumbnails

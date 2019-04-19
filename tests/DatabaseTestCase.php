@@ -37,6 +37,7 @@ abstract class DatabaseTestCase extends \PHPUnit_Extensions_Database_TestCase
      */
     protected function setUp()
     {
+        $this->clearDB();
         if (Yii::$app->get('db', false) === null) {
             $this->markTestSkipped();
         } else {
@@ -70,10 +71,7 @@ abstract class DatabaseTestCase extends \PHPUnit_Extensions_Database_TestCase
         return $this->createFlatXMLDataSet(__DIR__ . '/data/test.xml');
     }
 
-    /**
-     * @inheritdoc
-     */
-    public static function setUpBeforeClass()
+    protected function clearDB()
     {
         try {
             Yii::$app->set('db', [
