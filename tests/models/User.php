@@ -40,6 +40,7 @@ class User extends ActiveRecord
                 'scenarios' => ['insert', 'update'],
                 'path' => '@webroot/upload/user/{id}',
                 'url' => '@web/upload/user/{id}',
+                'placeholder' => '@tests/data/test-image.jpg',
                 'createThumbsOnRequest' => true,
                 'createThumbsOnSave' => false,
                 'generateNewName' => false,

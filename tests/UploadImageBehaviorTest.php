@@ -80,6 +80,13 @@ class UploadImageBehaviorTest extends DatabaseTestCase
         $this->assertTrue(file_exists(__DIR__ . '/upload/user/' . $user->id . '/preview-test-image.jpg'));
     }
 
+    public function testGetPlaceholderOnNotExistAttribute() {
+        $user = User::findOne(1);
+
+        $image = $user->getThumbUploadUrl('not_exist_attribute', 'thumb');
+        $this->assertContains('thumb-test-image.jpg', $image);
+    }
+
     /**
      * @inheritdoc
      */

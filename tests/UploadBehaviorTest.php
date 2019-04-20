@@ -103,6 +103,17 @@ class UploadBehaviorTest extends DatabaseTestCase
         $this->assertEquals('file-3.jpg', $document->file);
     }
 
+    public function testGetUploadFileUrl()
+    {
+        $document = Document::findOne(3);
+
+        $url = $document->getUploadUrl('file');
+        $except_url = \Yii::getAlias('@web/upload/docs/'). $document->id.'/'.$document->file;
+
+        $this->assertEquals($except_url, $url);
+
+    }
+
     /**
      * @inheritdoc
      */

@@ -42,6 +42,7 @@ abstract class DatabaseTestCase extends \PHPUnit_Extensions_Database_TestCase
             $this->markTestSkipped();
         } else {
             FileHelper::createDirectory(__DIR__ . '/upload');
+            FileHelper::createDirectory(__DIR__ . '/assets');
             parent::setUp();
         }
     }
@@ -53,6 +54,7 @@ abstract class DatabaseTestCase extends \PHPUnit_Extensions_Database_TestCase
     {
         parent::tearDown();
         FileHelper::removeDirectory(__DIR__ . '/upload');
+        FileHelper::removeDirectory(__DIR__ . '/assets');
     }
 
     /**
