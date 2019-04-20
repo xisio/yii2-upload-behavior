@@ -139,7 +139,7 @@ class UploadBehavior extends Behavior
     /**
      * @var string temporary folder name
      */
-    public $tempFolder = '@runtime/';
+    public $tempFolder = '@runtime';
     /**
      * @var UploadedFile the uploaded file instance.
      */
@@ -213,6 +213,44 @@ class UploadBehavior extends Behavior
     }
 
     /**
+     * @param UploadedFile $file
+     * @return string
+     */
+    protected function getFileName($file)
+    {
+        if ($this->generateNewName && !$this->_import) {
+            return $this->generateNewName instanceof Closure
+                ? call_user_func($this->generateNewName, $file)
+                : $this->generateFileName($file);
+        } else {
+            return $this->sanitize($file->name);
+        }
+    }
+
+    /**
+     * Generates random filename.
+     * @param UploadedFile $file
+     * @return string
+     */
+    protected function generateFileName($file)
+    {
+        return uniqid() . '.' . $file->extension;
+    }
+
+    /**
+     * Replaces characters in strings that are illegal/unsafe for filename.
+     *
+     * #my*  unsaf<e>&file:name?".png
+     *
+     * @param string $filename the source filename to be "sanitized"
+     * @return boolean string the sanitized filename
+     */
+    public static function sanitize($filename)
+    {
+        return str_replace([' ', '"', '\'', '&', '/', '\\', '?', '#'], '-', $filename);
+    }
+
+    /**
      * This method is called at the beginning of inserting or updating a record.
      */
     public function beforeSave()
@@ -241,38 +279,27 @@ class UploadBehavior extends Behavior
     }
 
     /**
-     * This method is called at the end of inserting or updating a record.
-     * @throws \yii\base\Exception
+     * Deletes old file.
+     * @param string $attribute
+     * @param boolean $old
      */
-    public function afterSave()
+    protected function delete($attribute, $old = false)
     {
-        if ($this->_file instanceof UploadedFile) {
-            $path = $this->getUploadPath($this->attribute);
-            if (is_string($path) && FileHelper::createDirectory(dirname($path))) {
-                $this->save($this->_file, $path);
-                $this->deleteTempFile();
-                $this->afterUpload();
-            } else {
-                throw new InvalidArgumentException(
-                    "Directory specified in 'path' attribute doesn't exist or cannot be created."
-                );
+        $path = $this->getUploadPath($attribute, $old);
+
+        $this->deleteFile($path);
+
+        if ($this->deleteEmptyDir) {
+            $dir = dirname($path);
+            if (is_dir($dir) && count(scandir($dir)) == 2) {
+                rmdir($dir);
             }
         }
     }
 
     /**
-     * This method is invoked after deleting a record.
-     */
-    public function afterDelete()
-    {
-        $attribute = $this->attribute;
-        if ($this->unlinkOnDelete && $attribute) {
-            $this->delete($attribute);
-        }
-    }
-
-    /**
      * Returns file path for the attribute.
+     *
      * @param string $attribute
      * @param boolean $old
      * @return string|null the file path.
@@ -286,31 +313,6 @@ class UploadBehavior extends Behavior
         $fileName = ($old === true) ? $model->getOldAttribute($attribute) : $model->$attribute;
 
         return $fileName ? Yii::getAlias($path . '/' . $fileName) : null;
-    }
-
-    /**
-     * Returns file url for the attribute.
-     * @param string $attribute
-     * @return string|null
-     * @throws \yii\base\InvalidConfigException
-     */
-    public function getUploadUrl($attribute)
-    {
-        /** @var BaseActiveRecord $model */
-        $model = $this->owner;
-        $url = $this->resolvePath($this->url);
-        $fileName = $model->getOldAttribute($attribute);
-
-        return $fileName ? Yii::getAlias($url . '/' . $fileName) : null;
-    }
-
-    /**
-     * Returns the UploadedFile instance.
-     * @return UploadedFile
-     */
-    protected function getUploadedFile()
-    {
-        return $this->_file;
     }
 
     /**
@@ -340,6 +342,38 @@ class UploadBehavior extends Behavior
     }
 
     /**
+     * Delete file from path
+     * @param string $path
+     */
+    protected function deleteFile($path)
+    {
+        if (is_file($path)) {
+            unlink($path);
+        }
+        return;
+    }
+
+    /**
+     * This method is called at the end of inserting or updating a record.
+     * @throws \yii\base\Exception
+     */
+    public function afterSave()
+    {
+        if ($this->_file instanceof UploadedFile) {
+            $path = $this->getUploadPath($this->attribute);
+            if (is_string($path) && FileHelper::createDirectory(dirname($path))) {
+                $this->save($this->_file, $path);
+                $this->deleteTempFile();
+                $this->afterUpload();
+            } else {
+                throw new InvalidArgumentException(
+                    "Directory specified in 'path' attribute doesn't exist or cannot be created."
+                );
+            }
+        }
+    }
+
+    /**
      * Saves the uploaded file.
      * @param UploadedFile $file the uploaded file instance
      * @param string $path the file path used to save the uploaded file
@@ -351,60 +385,14 @@ class UploadBehavior extends Behavior
     }
 
     /**
-     * Deletes old file.
-     * @param string $attribute
-     * @param boolean $old
+     * Remove temp file if exist
      */
-    protected function delete($attribute, $old = false)
+    protected function deleteTempFile()
     {
-        $path = $this->getUploadPath($attribute, $old);
-
-        $this->deleteFile($path);
-
-        if ($this->deleteEmptyDir) {
-            $dir = dirname($path);
-            if (is_dir($dir) && count(scandir($dir)) == 2) {
-                rmdir($dir);
-            }
+        if ($this->_temp_file_path !== null) {
+            $this->deleteFile($this->_temp_file_path);
+            $this->_temp_file_path = null;
         }
-    }
-
-    /**
-     * @param UploadedFile $file
-     * @return string
-     */
-    protected function getFileName($file)
-    {
-        if ($this->generateNewName && !$this->_import) {
-            return $this->generateNewName instanceof Closure
-                ? call_user_func($this->generateNewName, $file)
-                : $this->generateFileName($file);
-        } else {
-            return $this->sanitize($file->name);
-        }
-    }
-
-    /**
-     * Replaces characters in strings that are illegal/unsafe for filename.
-     *
-     * #my*  unsaf<e>&file:name?".png
-     *
-     * @param string $filename the source filename to be "sanitized"
-     * @return boolean string the sanitized filename
-     */
-    public static function sanitize($filename)
-    {
-        return str_replace([' ', '"', '\'', '&', '/', '\\', '?', '#'], '-', $filename);
-    }
-
-    /**
-     * Generates random filename.
-     * @param UploadedFile $file
-     * @return string
-     */
-    protected function generateFileName($file)
-    {
-        return uniqid() . '.' . $file->extension;
     }
 
     /**
@@ -419,15 +407,31 @@ class UploadBehavior extends Behavior
     }
 
     /**
-     * Delete file from path
-     * @param string $path
+     * This method is invoked after deleting a record.
      */
-    protected function deleteFile($path)
+    public function afterDelete()
     {
-        if (is_file($path)) {
-            unlink($path);
+        $attribute = $this->attribute;
+        if ($this->unlinkOnDelete && $attribute) {
+            $this->delete($attribute);
         }
-        return;
+    }
+
+    /**
+     * Returns file url for the attribute.
+     *
+     * @param string $attribute
+     * @return string|null
+     * @throws \yii\base\InvalidConfigException
+     */
+    public function getUploadUrl($attribute)
+    {
+        /** @var BaseActiveRecord $model */
+        $model = $this->owner;
+        $url = $this->resolvePath($this->url);
+        $fileName = $model->getOldAttribute($attribute);
+
+        return $fileName ? Yii::getAlias($url . '/' . $fileName) : null;
     }
 
     /**
@@ -438,74 +442,23 @@ class UploadBehavior extends Behavior
         /** @var BaseActiveRecord $model */
         $model = $this->owner;
 
-        if ($this->restoreValueAfterFailValidation && $model->hasErrors($this->attribute))
+        if ($this->restoreValueAfterFailValidation && $model->hasErrors($this->attribute)) {
             $model->setAttribute($this->attribute, $model->getOldAttribute($this->attribute));
+        }
 
         return;
     }
 
     /**
-     * Upload file from url
+     * Set attribute by filename or file content with auto set file extension and validation by mime type
      *
-     * @param $attribute string name of attribute with attached UploadBehavior
-     * @param $url string
-     * @throws InvalidConfigException
-     * @throws \yii\base\Exception
-     * @throws \yii\httpclient\Exception
-     */
-    public function uploadFromUrl($attribute, $url) {
-
-        $this->_import = true;
-
-        $client = new Client();
-        $response = $client->createRequest()
-            ->setUrl($url)
-            ->setMethod('GET')
-            ->send();
-        $contentType = $response->getHeaders()->get('Content-Type');
-
-        if ($response->isOk) {
-
-            $fileContent = $response->content;
-            $this->setAttributeFile($attribute, $url, $fileContent);
-
-        }
-        else {
-            throw new InvalidArgumentException('url $url not valid');
-        }
-    }
-
-    /**
-     * Upload file from local storage
-     *
-     * @param $attribute string name of attribute with attached UploadBehavior
-     * @param $filename
-     * @throws InvalidConfigException
-     * @throws \yii\base\Exception
-     */
-    public function uploadFromFile($attribute, $filename) {
-
-        $this->_import = true;
-
-        $file_path = \Yii::getAlias($filename);
-
-        if (file_exists($file_path)) {
-            $this->setAttributeFile($attribute, $file_path);
-        }
-        else {
-            throw new InvalidArgumentException('file $filename not exist');
-        }
-
-    }
-
-    /**
-     * @param $attribute
-     * @param $url
+     * @param string $attribute
+     * @param string $url
      * @param string $fileContent
      * @throws InvalidConfigException
      * @throws \yii\base\Exception
      */
-    protected function setAttributeFile($attribute, $filePath, $fileContent = null)
+    protected function setAttributeByImportFile($attribute, $filePath, $fileContent = null)
     {
         /** @var BaseActiveRecord $model */
         $model = $this->owner;
@@ -513,7 +466,7 @@ class UploadBehavior extends Behavior
         $old_value = $model->getAttribute($attribute);
 
         $temp_filename = uniqid();
-        $temp_file_path = \Yii::getAlias($this->tempFolder) . $temp_filename;
+        $temp_file_path = \Yii::getAlias($this->tempFolder) . '/' . $temp_filename;
 
         try {
             if ($fileContent === null) {
@@ -570,13 +523,53 @@ class UploadBehavior extends Behavior
     }
 
     /**
-     * remove temp file
+     * Upload file from url
+     *
+     * @param $attribute string name of attribute with attached UploadBehavior
+     * @param $url string
+     * @throws InvalidConfigException
+     * @throws \yii\base\Exception
+     * @throws \yii\httpclient\Exception
      */
-    protected function deleteTempFile()
+    public function uploadFromUrl($attribute, $url)
     {
-        if ($this->_temp_file_path !== null) {
-            $this->deleteFile($this->_temp_file_path);
-            $this->_temp_file_path = null;
+        $this->_import = true;
+
+        $client = new Client();
+
+        $response = $client->createRequest()
+            ->setUrl($url)
+            ->setMethod('GET')
+            ->send();
+
+        if ($response->isOk) {
+            $fileContent = $response->content;
+            $this->setAttributeByImportFile($attribute, $url, $fileContent);
+            $this->afterUpload();
+        } else {
+            throw new InvalidArgumentException('url $url not valid');
+        }
+    }
+
+    /**
+     * Import file from local storage
+     *
+     * @param $attribute string name of attribute with attached UploadBehavior
+     * @param $filename
+     * @throws InvalidConfigException
+     * @throws \yii\base\Exception
+     */
+    public function uploadFromFile($attribute, $filename)
+    {
+        $this->_import = true;
+
+        $file_path = \Yii::getAlias($filename);
+
+        if (file_exists($file_path)) {
+            $this->setAttributeByImportFile($attribute, $file_path);
+            $this->afterUpload();
+        } else {
+            throw new InvalidArgumentException('file $filename not exist');
         }
     }
 }

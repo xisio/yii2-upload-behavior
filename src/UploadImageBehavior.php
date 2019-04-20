@@ -119,6 +119,78 @@ class UploadImageBehavior extends UploadBehavior
     }
 
     /**
+     * @param string $attribute
+     * @param string $profile
+     * @return string|null
+     * @throws \yii\base\Exception
+     * @throws \yii\base\InvalidConfigException
+     */
+    public function getThumbUploadUrl($attribute, $profile = 'thumb')
+    {
+        /** @var BaseActiveRecord $model */
+        $model = $this->owner;
+
+        if (!$model->getAttribute($attribute)) {
+            if ($this->placeholder) {
+                return $this->getPlaceholderUrl($profile);
+            } else {
+                return null;
+            }
+        }
+
+        $path = $this->getUploadPath($attribute, true);
+
+        //if original file exist - generate profile thumb and generate url to thumb
+        if (is_file($path) || !$this->deleteOriginalFile) {
+            if ($this->createThumbsOnRequest) {
+                $this->createThumbs($profile);
+            }
+            return $this->getThumbProfileUrl($attribute, $profile, $model);
+        } //if original file is deleted generate url to thumb
+        elseif ($this->deleteOriginalFile) {
+            return $this->getThumbProfileUrl($attribute, $profile, $model);
+        } elseif ($this->placeholder) {
+            return $this->getPlaceholderUrl($profile);
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * @param $profile
+     * @return string
+     */
+    protected function getPlaceholderUrl($profile)
+    {
+        list ($path, $url) = Yii::$app->assetManager->publish($this->placeholder);
+        $filename = basename($path);
+        $thumb = $this->getThumbFileName($filename, $profile);
+        $thumbPath = dirname($path) . DIRECTORY_SEPARATOR . $thumb;
+        $thumbUrl = dirname($url) . '/' . $thumb;
+
+        if (!is_file($thumbPath)) {
+            $this->generateImageThumb($this->thumbs[$profile], $path, $thumbPath);
+        }
+
+        return $thumbUrl;
+    }
+
+    /**
+     * @param $attribute
+     * @param $profile
+     * @param BaseActiveRecord $model
+     * @return bool|string
+     */
+    protected function getThumbProfileUrl($attribute, $profile, BaseActiveRecord $model)
+    {
+        $url = $this->resolvePath($this->thumbUrl);
+        $fileName = $model->getOldAttribute($attribute);
+        $thumbName = $this->getThumbFileName($fileName, $profile);
+
+        return Yii::getAlias($url . '/' . $thumbName);
+    }
+
+    /**
      * @inheritdoc
      */
     protected function afterUpload()
@@ -180,78 +252,6 @@ class UploadImageBehavior extends UploadBehavior
     }
 
     /**
-     * @param string $attribute
-     * @param string $profile
-     * @return string|null
-     * @throws \yii\base\Exception
-     * @throws \yii\base\InvalidConfigException
-     */
-    public function getThumbUploadUrl($attribute, $profile = 'thumb')
-    {
-        /** @var BaseActiveRecord $model */
-        $model = $this->owner;
-
-        if (!$model->getAttribute($attribute))
-        {
-            if ($this->placeholder) {
-                return $this->getPlaceholderUrl($profile);
-            }
-            else {
-                return null;
-            }
-        }
-
-        $path = $this->getUploadPath($attribute, true);
-
-        //if original file exist - generate profile thumb and generate url to thumb
-        if (is_file($path) || !$this->deleteOriginalFile) {
-            if ($this->createThumbsOnRequest) {
-                $this->createThumbs($profile);
-            }
-            return $this->getThumbProfileUrl($attribute, $profile, $model);
-        } //if original file is deleted generate url to thumb
-        elseif ($this->deleteOriginalFile) {
-            return $this->getThumbProfileUrl($attribute, $profile, $model);
-        } elseif ($this->placeholder) {
-            return $this->getPlaceholderUrl($profile);
-        } else {
-            return null;
-        }
-    }
-
-    /**
-     * @param $profile
-     * @return string
-     */
-    protected function getPlaceholderUrl($profile)
-    {
-        list ($path, $url) = Yii::$app->assetManager->publish($this->placeholder);
-        $filename = basename($path);
-        $thumb = $this->getThumbFileName($filename, $profile);
-        $thumbPath = dirname($path) . DIRECTORY_SEPARATOR . $thumb;
-        $thumbUrl = dirname($url) . '/' . $thumb;
-
-        if (!is_file($thumbPath)) {
-            $this->generateImageThumb($this->thumbs[$profile], $path, $thumbPath);
-        }
-
-        return $thumbUrl;
-    }
-
-    /**
-     * @inheritdoc
-     */
-    protected function delete($attribute, $old = false)
-    {
-        $profiles = array_keys($this->thumbs);
-        foreach ($profiles as $profile) {
-            $path = $this->getThumbUploadPath($attribute, $profile, $old);
-            $this->deleteFile($path);
-        }
-        parent::delete($attribute, $old);
-    }
-
-    /**
      * @param $filename
      * @param string $profile
      * @return string
@@ -293,17 +293,15 @@ class UploadImageBehavior extends UploadBehavior
     }
 
     /**
-     * @param $attribute
-     * @param $profile
-     * @param BaseActiveRecord $model
-     * @return bool|string
+     * @inheritdoc
      */
-    protected function getThumbProfileUrl($attribute, $profile, BaseActiveRecord $model)
+    protected function delete($attribute, $old = false)
     {
-        $url = $this->resolvePath($this->thumbUrl);
-        $fileName = $model->getOldAttribute($attribute);
-        $thumbName = $this->getThumbFileName($fileName, $profile);
-
-        return Yii::getAlias($url . '/' . $thumbName);
+        $profiles = array_keys($this->thumbs);
+        foreach ($profiles as $profile) {
+            $path = $this->getThumbUploadPath($attribute, $profile, $old);
+            $this->deleteFile($path);
+        }
+        parent::delete($attribute, $old);
     }
 }
