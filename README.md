@@ -1,3 +1,8 @@
+[![Build Status](https://api.travis-ci.org/shurik2k5/yii2-upload-behavior.svg?branch=master)](https://travis-ci.org/shurik2k5/yii2-upload-behavior)
+[![Total Downloads](https://img.shields.io/packagist/dt/shurik2k5/yii2-upload-behavior.svg)](https://packagist.org/packages/shurik2k5/yiyii2-upload-behavior)
+[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/shurik2k5/yii2-upload-behavior/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/shurik2k5/yii2-upload-behavior/?branch=master)
+[![Code Coverage](https://scrutinizer-ci.com/g/shurik2k5/yii2-upload-behavior/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/shurik2k5/yii2-upload-behavior/?branch=master)
+
 Upload behavior for Yii 2
 ===========================
 
@@ -59,7 +64,7 @@ class Document extends ActiveRecord
     {
         return [
             [
-                'class' => UploadBehavior::class,
+                'class' => \mohorev\file\UploadBehavior::class,
                 'attribute' => 'file',
                 'scenarios' => ['insert', 'update'],
                 'path' => '@webroot/upload/docs/{category.id}',
@@ -332,7 +337,7 @@ class Track extends ActiveRecord
     {
         return [
             [
-                'class' => UploadBehavior::class,
+                'class' => \mohorev\file\UploadBehavior::class,
                 'attribute' => 'image',
                 'scenarios' => ['default'],
                 'path' => '@webroot/uploads/{artist.slug}',
