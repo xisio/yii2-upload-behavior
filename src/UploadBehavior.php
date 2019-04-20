@@ -145,11 +145,11 @@ class UploadBehavior extends Behavior
      */
     private $_file;
     /**
-     * @var import flag for not generate new filename on import
+     * @var boolean flag for not generate new filename on import
      */
     private $_import;
     /**
-     * @var temporary filename
+     * @var string filename
      */
     private $_temp_file_path;
 
@@ -453,7 +453,7 @@ class UploadBehavior extends Behavior
      * Set attribute by filename or file content with auto set file extension and validation by mime type
      *
      * @param string $attribute
-     * @param string $url
+     * @param string $filePath
      * @param string $fileContent
      * @throws InvalidConfigException
      * @throws \yii\base\Exception
@@ -470,9 +470,9 @@ class UploadBehavior extends Behavior
 
         try {
             if ($fileContent === null) {
-                @copy($filePath, $temp_file_path);
+                copy($filePath, $temp_file_path);
             } else {
-                @file_put_contents($temp_file_path, $fileContent);
+                file_put_contents($temp_file_path, $fileContent);
             }
 
             $this->_temp_file_path = $temp_file_path;
@@ -504,14 +504,13 @@ class UploadBehavior extends Behavior
 
             $model->setAttribute($attribute, $upload);
             //check validation rules in model
-            if ($result = $model->validate($attribute)) {
-
+            if ($model->validate($attribute)) {
                 $this->_file = $upload;
 
                 $file_path = $this->getUploadPath($attribute);
                 //copy file to uploadpath folder
                 if (is_string($file_path) && FileHelper::createDirectory(dirname($file_path))) {
-                    @copy($temp_file_path, $file_path);
+                    copy($temp_file_path, $file_path);
                 }
             } else {
                 $model->setAttribute($attribute, $old_value);
