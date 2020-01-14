@@ -222,7 +222,7 @@ class UploadImageBehavior extends UploadBehavior
                         "Directory specified in 'thumbPath' attribute doesn't exist or cannot be created."
                     );
                 }
-                if (!is_file($thumbPath) && file_exists($thumbPath)) {
+                if (!is_file($thumbPath) && !file_exists($thumbPath)) {
                     $this->generateImageThumb($config, $path, $thumbPath);
                 }
             }
