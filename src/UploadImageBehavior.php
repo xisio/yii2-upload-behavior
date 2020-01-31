@@ -130,6 +130,18 @@ class UploadImageBehavior extends UploadBehavior
         /** @var BaseActiveRecord $model */
         $model = $this->owner;
 
+        if ($this->attribute !== $attribute) {
+            $behaviors = $model->getBehaviors();
+
+            foreach ($behaviors as $behavior) {
+                if ($behavior instanceof UploadImageBehavior) {
+                    if ($behavior->attribute == $attribute) {
+                        return $behavior->getThumbUploadUrl($attribute, $profile);
+                    }
+                }
+            }
+        }
+
         if (!$model->getAttribute($attribute)) {
             if ($this->placeholder) {
                 return $this->getPlaceholderUrl($profile);

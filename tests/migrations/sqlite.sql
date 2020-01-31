@@ -25,3 +25,11 @@ CREATE TABLE "file" (
   "year"     TEXT    NOT NULL,
   "file"     TEXT    NOT NULL
 );
+
+DROP TABLE IF EXISTS "gallery";
+
+CREATE TABLE "gallery" (
+  "id"       INTEGER NOT NULL PRIMARY KEY,
+  "image1"   TEXT    NOT NULL,
+  "image2"   TEXT    NOT NULL
+);

@@ -2,8 +2,8 @@
 
 namespace tests;
 
+use tests\models\Gallery;
 use tests\models\User;
-use Yii;
 use yii\web\UploadedFile;
 
 class UploadImageBehaviorTest extends DatabaseTestCase
@@ -87,6 +87,66 @@ class UploadImageBehaviorTest extends DatabaseTestCase
         $this->assertContains('thumb-test-image.jpg', $image);
     }
 
+    public function testFindGalleries()
+    {
+        $data = Gallery::find()->asArray()->all();
+        $this->assertEquals(require(__DIR__ . '/data/test-find-galleries.php'), $data);
+    }
+
+    public function testFindGallery()
+    {
+        $gallery = Gallery::findOne(1);
+        $this->assertEquals('image-1.jpg', $gallery->image1);
+        $this->assertEquals('image-2.jpg', $gallery->image2);
+    }
+
+    public function testGetUploadWithMultiplyBehaviorsAttachedOne()
+    {
+        $gallery = Gallery::findOne(3);
+
+        $gallery->setScenario('update');
+
+        $this->assertTrue($gallery->save());
+
+        $path1 = $gallery->getUploadPath('image1');
+        $this->assertNull($path1);
+
+        $url1 = $gallery->getThumbUploadUrl('image1', 'thumb');
+        $this->assertContains('assets', $url1);
+
+        $path2 = $gallery->getUploadPath('image2');
+        $this->assertTrue(is_file($path2));
+        $this->assertEquals(sha1_file($path2), sha1_file(__DIR__ . '/data/test-image.jpg'));
+
+        $url2 = $gallery->getThumbUploadUrl('image2', 'thumb');
+        $this->assertContains('upload/gallery', $url2);
+    }
+
+    public function testGetUploadWithMultiplyBehaviorsAttachedTwo()
+    {
+        $gallery = Gallery::findOne(4);
+
+        $gallery->setScenario('update');
+
+        $_FILES['Gallery[image1]'] = $_FILES['Gallery[image2]'];
+        unset($_FILES['Gallery[image2]']);
+
+        $this->assertTrue($gallery->save());
+
+        $url1 = $gallery->getThumbUploadUrl('image1', 'thumb');
+        $this->assertContains('upload/gallery', $url1);
+
+        $path1 = $gallery->getUploadPath('image1');
+        $this->assertTrue(is_file($path1));
+        $this->assertEquals(sha1_file($path1), sha1_file(__DIR__ . '/data/test-image.jpg'));
+
+        $path2 = $gallery->getUploadPath('image2');
+        $this->assertNull($path2);
+
+        $url2 = $gallery->getThumbUploadUrl('image2', 'thumb');
+        $this->assertContains('assets', $url2);
+    }
+
     /**
      * @inheritdoc
      */
@@ -96,6 +156,13 @@ class UploadImageBehaviorTest extends DatabaseTestCase
 
         $_FILES = [
             'User[image]' => [
+                'name' => 'test-image.jpg',
+                'type' => 'image/jpeg',
+                'size' => 74463,
+                'tmp_name' => __DIR__ . '/data/test-image.jpg',
+                'error' => 0,
+            ],
+            'Gallery[image2]' => [
                 'name' => 'test-image.jpg',
                 'type' => 'image/jpeg',
                 'size' => 74463,

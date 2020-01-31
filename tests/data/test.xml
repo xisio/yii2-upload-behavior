@@ -5,4 +5,8 @@
     <document id="3" title="Doc 3" file="file-3.jpg"/>
     <user id="1" nickname="admin" image="image-1.jpg"/>
     <user id="2" nickname="moderator" image="image-2.jpg"/>
+    <gallery id="1" image1="image-1.jpg" image2="image-2.jpg"/>
+    <gallery id="2" image1="image-2.jpg" image2="image-1.jpg"/>
+    <gallery id="3" image1="image-1.jpg" image2=""/>
+    <gallery id="4" image1="" image2="image-2.jpg"/>
 </dataset>

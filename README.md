@@ -8,9 +8,9 @@ Upload behavior for Yii 2
 
 This behavior automatically uploads file and fills the specified attribute with a value of the name of the uploaded file.
 
-In this behaviour added ability to load file from URL and local files.
+In this behaviour added ability to load file from URL and local files, and attach behavior for two or more attributes.
 
-This repo is fork https://github.com/mohorev/yii2-upload-behavior/
+This is an enhanced version of https://github.com/mohorev/yii2-upload-behavior/
 
 Installation
 ------------
@@ -348,4 +348,10 @@ class Track extends ActiveRecord
 }
 ```
 
-If related model attribute `slug` will change, you must change folders' names too, otherwise behavior will works not correctly. 
+If related model attribute `slug` will change, you must change folders' names too, otherwise behavior will works not correctly.
+
+Authors
+-----
+* Alexander Mohorev <dev.mohorev@gmail.com>
+* Alexey Samoylov <alexey.samoylov@gmail.com>
+* Aleksandr Pogorelov <shurik2k5@gmail.com>
