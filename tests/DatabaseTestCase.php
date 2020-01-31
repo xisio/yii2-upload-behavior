@@ -41,6 +41,8 @@ abstract class DatabaseTestCase extends \PHPUnit_Extensions_Database_TestCase
         if (Yii::$app->get('db', false) === null) {
             $this->markTestSkipped();
         } else {
+            FileHelper::createDirectory(__DIR__ . '/fixtures/');
+            FileHelper::copyDirectory(__DIR__ . '/data', __DIR__ . '/fixtures/');
             FileHelper::createDirectory(__DIR__ . '/upload');
             parent::setUp();
         }
@@ -53,6 +55,7 @@ abstract class DatabaseTestCase extends \PHPUnit_Extensions_Database_TestCase
     {
         parent::tearDown();
         FileHelper::removeDirectory(__DIR__ . '/upload');
+        FileHelper::removeDirectory(__DIR__ . '/fixtures');
     }
 
     /**

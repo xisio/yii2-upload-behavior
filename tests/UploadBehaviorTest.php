@@ -71,6 +71,8 @@ class UploadBehaviorTest extends DatabaseTestCase
         $doc1->setScenario('insert');
         $doc1->save();
 
+        copy(__DIR__ . '/data/test-file.txt', __DIR__ . '/fixtures/test-file.txt');
+
         $doc2 = new File(['year' => '2018']);
         $doc2->setScenario('insert');
         $doc2->save();
@@ -126,28 +128,28 @@ class UploadBehaviorTest extends DatabaseTestCase
                 'name' => 'test-file.txt',
                 'type' => 'text/plain',
                 'size' => 12,
-                'tmp_name' => __DIR__ . '/data/test-file.txt',
+                'tmp_name' => __DIR__ . '/fixtures/test-file.txt',
                 'error' => 0,
             ],
             'Document[file-other]' => [
                 'name' => 'test-file-other.txt',
                 'type' => 'text/plain',
                 'size' => 12,
-                'tmp_name' => __DIR__ . '/data/test-file-other.txt',
+                'tmp_name' => __DIR__ . '/fixtures/test-file-other.txt',
                 'error' => 0,
             ],
             'File[file]' => [
                 'name' => 'test-file.txt',
                 'type' => 'text/plain',
                 'size' => 12,
-                'tmp_name' => __DIR__ . '/data/test-file.txt',
+                'tmp_name' => __DIR__ . '/fixtures/test-file.txt',
                 'error' => 0,
             ],
             'Document[file-other-php]' => [
                 'name' => 'test-file.php',
                 'type' => 'text/php',
                 'size' => 10,
-                'tmp_name' => __DIR__ . '/data/test-file.php',
+                'tmp_name' => __DIR__ . '/fixtures/test-file.php',
                 'error' => 0,
             ],
         ];

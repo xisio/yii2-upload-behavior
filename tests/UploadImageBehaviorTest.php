@@ -159,14 +159,14 @@ class UploadImageBehaviorTest extends DatabaseTestCase
                 'name' => 'test-image.jpg',
                 'type' => 'image/jpeg',
                 'size' => 74463,
-                'tmp_name' => __DIR__ . '/data/test-image.jpg',
+                'tmp_name' => __DIR__ . '/fixtures/test-image.jpg',
                 'error' => 0,
             ],
             'Gallery[image2]' => [
                 'name' => 'test-image.jpg',
                 'type' => 'image/jpeg',
                 'size' => 74463,
-                'tmp_name' => __DIR__ . '/data/test-image.jpg',
+                'tmp_name' => __DIR__ . '/fixtures/test-image.jpg',
                 'error' => 0,
             ],
         ];
