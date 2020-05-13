@@ -1,5 +1,5 @@
 {
-    "name": "shurik2k5/yii2-upload-behavior",
+    "name": "xisio/yii2-upload-behavior",
     "description": "Improved version Upload behavior for Yii 2 by mohorev/yii2-upload-behavior",
     "keywords": ["yii2", "extension", "behavior", "file", "image", "upload", "resize", "thumb"],
     "homepage": "https://github.com/shurik2k5/yii2-upload-behavior",
@@ -21,6 +21,10 @@
         {
             "name": "Max Alexandrov",
             "email": "max@7u3.ru"
+        },
+        {
+            "name": "Denis Warsow",
+            "email": "stdedjub@gmail.com"
         }
     ],
     "repositories": [
